@@ -1,1 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Damp Memories Forest</title>
 
+  <style>
+    body {
+      margin: 0;
+      font-family: serif;
+      background: #0d1b13;
+      color: #d1dad3;
+    }
+
+    #toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(0,0,0,0.6);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    button {
+      margin: 5px;
+      padding: 8px;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div id="toolbar">
+  <button onclick="mode='draw'">✏️ Draw</button>
+  <button onclick="mode='text'">✍️ Text</button>
+  <button onclick="mode='move'">🖐️ Move</button>
+  <button onclick="mode='erase'">🧽 Erase</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAEVHfMhZW4US50DZCMThzMklox7Byz1gk",
+  authDomain: "damp-memories-forests.firebaseapp.com",
+  projectId: "damp-memories-forests",
+  storageBucket: "damp-memories-forests.firebasestorage.app",
+  messagingSenderId: "271364290322",
+  appId: "1:271364290322:web:d649762fd9303fa9baa5cb"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let mode = "draw";
+let drawing = false;
+let currentPath = [];
+let elements = [];
+let selected = null;
+
+// 🎨 DRAW ZONES
+function drawZones() {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // white creation zone (top)
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, w, 150);
+
+  // wet
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 150, w/3, h);
+
+  // open
+  ctx.fillStyle = "#666666";
+  ctx.fillRect(w/3, 150, w/3, h);
+
+  // shadow
+  ctx.fillStyle = "#3a4f7a";
+  ctx.fillRect(2*w/3, 150, w/3, h);
+
+  ctx.fillStyle = "#aaa";
+  ctx.fillText("WET ZONE", 50, h - 20);
+  ctx.fillText("OPEN FIELD", w/2 - 50, h - 20);
+  ctx.fillText("SHADOW AREA", w - 150, h - 20);
+}
+
+// 🔁 RENDER EVERYTHING
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawZones();
+
+  elements.forEach(el => {
+    if (el.type === "path") {
+      ctx.beginPath();
+      el.points.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.strokeStyle = "white";
+      ctx.stroke();
+    }
+
+    if (el.type === "text") {
+      ctx.fillStyle = "white";
+      ctx.fillText(el.text, el.x, el.y);
+    }
+  });
+}
+
+// 🖱️ EVENTS
+canvas.onmousedown = (e) => {
+  const x = e.clientX;
+  const y = e.clientY;
+
+  if (mode === "draw") {
+    drawing = true;
+    currentPath = [{ x, y }];
+  }
+
+  if (mode === "text") {
+    const txt = prompt("Write your memory:");
+    if (txt) {
+      addDoc(collection(db, "elements"), {
+        type: "text",
+        text: txt,
+        x, y
+      });
+    }
+  }
+
+  if (mode === "move") {
+    selected = elements.find(el =>
+      el.type === "text" &&
+      Math.abs(el.x - x) < 50 &&
+      Math.abs(el.y - y) < 20
+    );
+  }
+
+  if (mode === "erase") {
+    const target = elements.find(el =>
+      el.type === "text" &&
+      Math.abs(el.x - x) < 50 &&
+      Math.abs(el.y - y) < 20
+    );
+    if (target) {
+      deleteDoc(doc(db, "elements", target.id));
+    }
+  }
+};
+
+canvas.onmousemove = (e) => {
+  const x = e.clientX;
+  const y = e.clientY;
+
+  if (drawing) {
+    currentPath.push({ x, y });
+    render();
+    ctx.beginPath();
+    currentPath.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+  }
+
+  if (mode === "move" && selected) {
+    selected.x = x;
+    selected.y = y;
+    updateDoc(doc(db, "elements", selected.id), {
+      x, y
+    });
+  }
+};
+
+canvas.onmouseup = () => {
+  if (drawing) {
+    addDoc(collection(db, "elements"), {
+      type: "path",
+      points: currentPath
+    });
+    drawing = false;
+  }
+  selected = null;
+};
+
+// 🔄 REALTIME SYNC
+onSnapshot(collection(db, "elements"), (snapshot) => {
+  elements = [];
+  snapshot.forEach(docSnap => {
+    elements.push({ id: docSnap.id, ...docSnap.data() });
+  });
+  render();
+});
+</script>
+
+</body>
+</html>
