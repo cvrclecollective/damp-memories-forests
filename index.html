@@ -37,9 +37,13 @@
 
 <div id="toolbar">
   <button onclick="mode='draw'">✏️ Draw</button>
-  <button onclick="mode='text'">✍️ Text</button>
   <button onclick="mode='move'">🖐️ Move</button>
   <button onclick="mode='erase'">🧽 Erase</button>
+
+  <br><br>
+
+  <input id="textInput" placeholder="write your memory..." />
+  <button onclick="activateText()">Place Text</button>
 </div>
 
 <canvas id="canvas"></canvas>
