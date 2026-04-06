@@ -43,7 +43,7 @@
   <br><br>
 
   <input id="textInput" placeholder="write your memory..." />
-  <button onclick="activateText()">Place Text</button>
+  <button onclick="mode='text'">📝</button>
 </div>
 
 <canvas id="canvas"></canvas>
@@ -136,16 +136,21 @@ canvas.onmousedown = (e) => {
     currentPath = [{ x, y }];
   }
 
-if (mode === "text" && pendingText) {
-  addDoc(collection(db, "elements"), {
-    type: "text",
-    text: pendingText,
-    x, y
-  });
-  pendingText = null;
-}
+  else if (mode === "text") {
+    const txt = document.getElementById("textInput").value;
+    if (!txt) return;
 
-  if (mode === "move") {
+    addDoc(collection(db, "elements"), {
+      type: "text",
+      text: txt,
+      x,
+      y
+    });
+
+    document.getElementById("textInput").value = "";
+  }
+
+  else if (mode === "move") {
     selected = elements.find(el =>
       el.type === "text" &&
       Math.abs(el.x - x) < 50 &&
@@ -153,18 +158,24 @@ if (mode === "text" && pendingText) {
     );
   }
 
-  if (mode === "erase") {
-    const target = elements.find(el =>
-      el.type === "text" &&
-      Math.abs(el.x - x) < 50 &&
-      Math.abs(el.y - y) < 20
-    );
-    if (target) {
-      deleteDoc(doc(db, "elements", target.id));
+  else if (mode === "erase") {
+  const target = elements.find(el => {
+    if (el.type === "text") {
+      return Math.abs(el.x - x) < 50 && Math.abs(el.y - y) < 20;
     }
-  }
-};
 
+    if (el.type === "path") {
+      return el.points.some(p =>
+        Math.abs(p.x - x) < 10 && Math.abs(p.y - y) < 10
+      );
+    }
+  });
+
+  if (target) {
+    deleteDoc(doc(db, "elements", target.id));
+  }
+}
+  
 canvas.onmousemove = (e) => {
   const x = e.clientX;
   const y = e.clientY;
