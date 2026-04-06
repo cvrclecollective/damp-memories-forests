@@ -159,22 +159,23 @@ canvas.onmousedown = (e) => {
   }
 
   else if (mode === "erase") {
-  const target = elements.find(el => {
-    if (el.type === "text") {
-      return Math.abs(el.x - x) < 50 && Math.abs(el.y - y) < 20;
-    }
+    const target = elements.find(el => {
+      if (el.type === "text") {
+        return Math.abs(el.x - x) < 50 && Math.abs(el.y - y) < 20;
+      }
 
-    if (el.type === "path") {
-      return el.points.some(p =>
-        Math.abs(p.x - x) < 10 && Math.abs(p.y - y) < 10
-      );
-    }
-  });
+      if (el.type === "path") {
+        return el.points.some(p =>
+          Math.abs(p.x - x) < 10 && Math.abs(p.y - y) < 10
+        );
+      }
+    });
 
-  if (target) {
-    deleteDoc(doc(db, "elements", target.id));
+    if (target) {
+      deleteDoc(doc(db, "elements", target.id));
+    }
   }
-}
+};
   
 canvas.onmousemove = (e) => {
   const x = e.clientX;
