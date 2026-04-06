@@ -1,50 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Damp Memories Forest</title>
+<meta charset="UTF-8">
+<title>Damp Memories Forest</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: serif;
-      background: #0d1b13;
-      color: #d1dad3;
-    }
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #0d1b13;
+  font-family: serif;
+}
 
-    #toolbar {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 100;
-      background: rgba(0,0,0,0.6);
-      padding: 10px;
-      border-radius: 8px;
-    }
-
-    button {
-      margin: 5px;
-      padding: 8px;
-      cursor: pointer;
-    }
-
-    canvas {
-      display: block;
-    }
-  </style>
+canvas {
+  display: block;
+  cursor: crosshair;
+}
+</style>
 </head>
 <body>
-
-<div id="toolbar">
-  <button onclick="mode='draw'">✏️ Draw</button>
-  <button onclick="mode='move'">🖐️ Move</button>
-  <button onclick="mode='erase'">🧽 Erase</button>
-
-  <br><br>
-
-  <input id="textInput" placeholder="write your memory..." />
-  <button onclick="mode='text'">📝</button>
-</div>
 
 <canvas id="canvas"></canvas>
 
@@ -53,12 +27,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAEVHfMhZW4US50DZCMThzMklox7Byz1gk",
-  authDomain: "damp-memories-forests.firebaseapp.com",
-  projectId: "damp-memories-forests",
-  storageBucket: "damp-memories-forests.firebasestorage.app",
-  messagingSenderId: "271364290322",
-  appId: "1:271364290322:web:d649762fd9303fa9baa5cb"
+  apiKey: "YOUR KEY",
+  authDomain: "YOUR DOMAIN",
+  projectId: "YOUR ID",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -76,34 +47,26 @@ let currentPath = [];
 let elements = [];
 let selected = null;
 
-// 🎨 DRAW ZONES
+// 🌫️ SOFT ZONES (gradient, not blocks)
 function drawZones() {
   const w = canvas.width;
   const h = canvas.height;
 
-  // white creation zone (top)
+  let grad = ctx.createLinearGradient(0, 0, w, 0);
+  grad.addColorStop(0, "#000000");
+  grad.addColorStop(0.5, "#444");
+  grad.addColorStop(1, "#3a4f7a");
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalAlpha = 0.2;
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, w, 150);
-
-  // wet
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 150, w/3, h);
-
-  // open
-  ctx.fillStyle = "#666666";
-  ctx.fillRect(w/3, 150, w/3, h);
-
-  // shadow
-  ctx.fillStyle = "#3a4f7a";
-  ctx.fillRect(2*w/3, 150, w/3, h);
-
-  ctx.fillStyle = "#aaa";
-  ctx.fillText("WET ZONE", 50, h - 20);
-  ctx.fillText("OPEN FIELD", w/2 - 50, h - 20);
-  ctx.fillText("SHADOW AREA", w - 150, h - 20);
+  ctx.fillRect(0, 0, w, 120);
+  ctx.globalAlpha = 1;
 }
 
-// 🔁 RENDER EVERYTHING
+// 🌳 RENDER
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawZones();
@@ -115,18 +78,20 @@ function render() {
         if (i === 0) ctx.moveTo(p.x, p.y);
         else ctx.lineTo(p.x, p.y);
       });
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.lineWidth = 2;
       ctx.stroke();
     }
 
     if (el.type === "text") {
-      ctx.fillStyle = "white";
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.font = "16px serif";
       ctx.fillText(el.text, el.x, el.y);
     }
   });
 }
 
-// 🖱️ EVENTS
+// 🖱️ INTERACTION
 canvas.onmousedown = (e) => {
   const x = e.clientX;
   const y = e.clientY;
@@ -137,23 +102,21 @@ canvas.onmousedown = (e) => {
   }
 
   else if (mode === "text") {
-    const txt = document.getElementById("textInput").value;
-    if (!txt) return;
-
-    addDoc(collection(db, "elements"), {
-      type: "text",
-      text: txt,
-      x,
-      y
-    });
-
-    document.getElementById("textInput").value = "";
+    const txt = prompt("write what never dried...");
+    if (txt) {
+      addDoc(collection(db, "elements"), {
+        type: "text",
+        text: txt,
+        x, y
+      });
+    }
+    mode = "draw";
   }
 
   else if (mode === "move") {
     selected = elements.find(el =>
       el.type === "text" &&
-      Math.abs(el.x - x) < 50 &&
+      Math.abs(el.x - x) < 60 &&
       Math.abs(el.y - y) < 20
     );
   }
@@ -161,9 +124,8 @@ canvas.onmousedown = (e) => {
   else if (mode === "erase") {
     const target = elements.find(el => {
       if (el.type === "text") {
-        return Math.abs(el.x - x) < 50 && Math.abs(el.y - y) < 20;
+        return Math.abs(el.x - x) < 60 && Math.abs(el.y - y) < 20;
       }
-
       if (el.type === "path") {
         return el.points.some(p =>
           Math.abs(p.x - x) < 10 && Math.abs(p.y - y) < 10
@@ -174,9 +136,11 @@ canvas.onmousedown = (e) => {
     if (target) {
       deleteDoc(doc(db, "elements", target.id));
     }
+
+    mode = "draw";
   }
 };
-  
+
 canvas.onmousemove = (e) => {
   const x = e.clientX;
   const y = e.clientY;
@@ -189,15 +153,14 @@ canvas.onmousemove = (e) => {
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     });
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
     ctx.stroke();
   }
 
-  if (mode === "move" && selected) {
+  if (selected) {
     selected.x = x;
     selected.y = y;
-    updateDoc(doc(db, "elements", selected.id), {
-      x, y
-    });
+    updateDoc(doc(db, "elements", selected.id), { x, y });
   }
 };
 
@@ -212,22 +175,26 @@ canvas.onmouseup = () => {
   selected = null;
 };
 
-let pendingText = null;
+// ⌨️ KEYBOARD MODES
+window.onkeydown = (e) => {
+  if (e.key === "t") mode = "text";
+  if (e.key === "e") mode = "erase";
+  if (e.key === "m") mode = "move";
+};
 
-function activateText() {
-  const val = document.getElementById("textInput").value;
-  if (val) {
-    pendingText = val;
-    mode = "text";
-  }
-}
-  
-// 🔄 REALTIME SYNC
+// 🌱 INITIAL FOREST (only if empty)
 onSnapshot(collection(db, "elements"), (snapshot) => {
+  if (snapshot.empty) {
+    addDoc(collection(db, "elements"), { type: "text", text: "she left before the coffee cooled", x: 200, y: 300 });
+    addDoc(collection(db, "elements"), { type: "text", text: "the sound of an empty room", x: 600, y: 400 });
+    addDoc(collection(db, "elements"), { type: "text", text: "the part I didn’t say out loud", x: 900, y: 500 });
+  }
+
   elements = [];
   snapshot.forEach(docSnap => {
     elements.push({ id: docSnap.id, ...docSnap.data() });
   });
+
   render();
 });
 </script>
