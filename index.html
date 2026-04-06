@@ -136,16 +136,14 @@ canvas.onmousedown = (e) => {
     currentPath = [{ x, y }];
   }
 
-  if (mode === "text") {
-    const txt = prompt("Write your memory:");
-    if (txt) {
-      addDoc(collection(db, "elements"), {
-        type: "text",
-        text: txt,
-        x, y
-      });
-    }
-  }
+if (mode === "text" && pendingText) {
+  addDoc(collection(db, "elements"), {
+    type: "text",
+    text: pendingText,
+    x, y
+  });
+  pendingText = null;
+}
 
   if (mode === "move") {
     selected = elements.find(el =>
@@ -202,6 +200,16 @@ canvas.onmouseup = () => {
   selected = null;
 };
 
+let pendingText = null;
+
+function activateText() {
+  const val = document.getElementById("textInput").value;
+  if (val) {
+    pendingText = val;
+    mode = "text";
+  }
+}
+  
 // 🔄 REALTIME SYNC
 onSnapshot(collection(db, "elements"), (snapshot) => {
   elements = [];
